@@ -15,6 +15,7 @@ from flask_wtf.csrf import CSRFError, CSRFProtect
 from pydantic import ValidationError
 from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import SecurityError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -425,6 +426,9 @@ def create_app(test_config=None):
                           413: "Odoslané údaje sú príliš veľké.", 429: "Príliš veľa požiadaviek. Skúste neskôr.",
                           500: "Požiadavku sa nepodarilo dokončiť. Skúste neskôr."}.items():
         def error_handler(error, error_code=code, error_message=message):
+            # An untrusted Host has no URL adapter, so base.html cannot build links.
+            if isinstance(error, SecurityError):
+                return "Neplatná požiadavka.", 400, {"Content-Type": "text/plain; charset=utf-8"}
             if error_code == 500:
                 db.session.rollback()
             return render_template("error.html", code=error_code, message=error_message), error_code

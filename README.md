@@ -2,6 +2,8 @@
 
 Kompletný samostatne spustiteľný projekt v Pythone 3.12+. Flask obsluhuje verejný dotazník a interné stránky, SQLAlchemy databázu, worker spracúva AI a e-maily. Šablóny aj PDF sú po slovensky. Stav vykonaných kontrol a nasadenia je v `VERIFICATION.md`. Zdrojový balík neobsahuje skutočné klientské údaje ani API kľúče.
 
+Portál je dostupný na [portal.kubekfinance.sk](https://portal.kubekfinance.sk). Vzhľad prihlásenia, dashboardu, dotazníka a kontaktu nadväzuje na [kubekfinance.sk](https://kubekfinance.sk): tmavomodré pozadie, tyrkysové a fialové prvky a vlastná ikona. Spoločná téma je v `static/brand.css`.
+
 ## 1. Štruktúra projektu
 
 ```text
@@ -210,7 +212,7 @@ docker compose logs --tail=100 web worker
 
 Otvorte `http://127.0.0.1:5000`. Web pri prvom štarte vytvorí tabuľky. Worker môže pred dokončením inicializácie krátko reštartovať; politika reštartu ho obnoví. Zmeny schémy pri budúcich verziách riešte migráciami, nie opakovaným `create_all`.
 
-V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.vasa-firma.sk`, skutočný `CONTROLLER_NAME` a primárny kontaktný e-mail `PRIVACY_EMAIL=info@kubekfinance.sk`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
+V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.kubekfinance.sk`, skutočný `CONTROLLER_NAME` a primárny kontaktný e-mail `PRIVACY_EMAIL=info@kubekfinance.sk`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
 
 ## 9. GitHub → Railway: web, worker, PostgreSQL a Redis
 
@@ -219,20 +221,21 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
 1. Do súkromného GitHub repozitára nahrajte **celý obsah projektu vrátane priečinkov** `templates/`, `static/` a `assets/`. Na hlavnej úrovni musia byť `app.py`, `Dockerfile`, `requirements.txt` a `start-web.sh`. Nenahrávajte `.env`, `.venv`, `instance/` ani databázové súbory.
 2. V prázdnom Railway projekte pridajte PostgreSQL s názvom `Postgres` a Redis s názvom `Redis`.
 3. Z GitHub repozitára pridajte službu `web`. Použije sa dodaný `Dockerfile`. V **Settings → Deploy → Custom Start Command** nastavte `sh start-web.sh`. **Pre-deploy Command** a **Healthcheck Path** nechajte prázdne. Skript najskôr vytvorí databázové tabuľky a potom spustí Gunicorn na porte z premennej `PORT`.
-4. Vo `web → Settings → Networking` vygenerujte verejnú HTTPS doménu s cieľovým portom `8080`. Jej skutočnú adresu použite ako `BASE_URL`.
+4. Vo `web → Settings → Networking` nastavte verejnú HTTPS doménu s cieľovým portom `8080`. Pri vlastnej doméne zadajte v DNS záznamy CNAME a prípadný overovací TXT podľa Railway a počkajte na platný certifikát. Toto nasadenie používa `portal.kubekfinance.sk`; DNS je v Cloudflare. Hlavná doména `kubekfinance.sk` a `www` zostávajú samostatným webom.
 5. Vo `web → Variables → RAW Editor` nastavte nasledujúce premenné. Ukážkové hodnoty nahraďte vlastnými:
 
    ```ini
    APP_ENV=production
    PORT=8080
-   BASE_URL=https://TVOJA-SKUTOCNA-DOMENA.up.railway.app
+   BASE_URL=https://portal.kubekfinance.sk
+   TRUSTED_HOSTS=portal.kubekfinance.sk,kubek-finance-portal-production.up.railway.app
    SECRET_KEY=POVODNA_HODNOTA_Z_ENV
    ENCRYPTION_KEY=POVODNA_HODNOTA_Z_ENV
    DATABASE_URL=${{Postgres.DATABASE_URL}}
    RATELIMIT_STORAGE_URI=${{Redis.REDIS_URL}}
    TRUST_PROXY=1
    ORGANIZATION_NAME="KUBEK Finance"
-   CONTROLLER_NAME="SKUTOCNY_PREVADZKOVATEL"
+   CONTROLLER_NAME="Dávid Kubek"
    CONTROLLER_ICO=55012469
    CONTROLLER_DIC=2121841821
    PRIVACY_EMAIL=info@kubekfinance.sk
@@ -246,7 +249,7 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
 7. V shelli bežiaceho webu (`railway ssh --service web` po prihlásení a prepojení Railway CLI) spustite `flask --app app:create_app create-agent`. Zadajte skutočný e-mail, meno a vlastné heslo s najmenej 12 znakmi. Potom otvorte HTTPS adresu a prihláste sa.
 8. Najskôr overte dotazník, dashboard a PDF na fiktívnych údajoch. AI a e-maily sú voliteľné: OpenAI zapnete doplnením `OPENAI_API_KEY` do oboch služieb, e-maily podľa časti 6 cez SMTP alebo SendGrid. Dostupnosť SMTP závisí od hostingu, plánu a poskytovateľa; overte ju pre svoj účet. Po zmene nastavení reštartujte obe služby a zablokované e-mailové úlohy zopakujte v detaile klienta.
 
-Pri zmene verejnej domény aktualizujte `BASE_URL` v oboch službách. Používajte trvalý PostgreSQL, pretože kontajnerový filesystém nie je úložisko databázy. Cena zahŕňa všetky štyri služby a prípadné API; pozrite [aktuálne plány Railway](https://docs.railway.com/pricing/plans). Stav vykonaných kontrol je v `VERIFICATION.md`.
+Pri zmene verejnej domény aktualizujte `BASE_URL` a `TRUSTED_HOSTS` v oboch službách. `TRUSTED_HOSTS` obsahuje konkrétne názvy povolených hostiteľov oddelené čiarkami, bez `https://`, portov a zástupných znakov; pôvodná Railway doména môže zostať povolená na kontrolu služby. Používajte trvalý PostgreSQL, pretože kontajnerový filesystém nie je úložisko databázy. Cena zahŕňa všetky štyri služby a prípadné API; pozrite [aktuálne plány Railway](https://docs.railway.com/pricing/plans). Stav vykonaných kontrol je v `VERIFICATION.md`.
 
 ## 10. Nasadenie na Render
 

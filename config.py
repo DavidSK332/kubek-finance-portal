@@ -1,5 +1,6 @@
 """Environment-only secrets. The same values must reach web and worker."""
 import os
+import re
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,12 +17,23 @@ def settings():
     if database_url.startswith(("postgres://", "postgresql://")):
         database_url = "postgresql+psycopg://" + database_url.split("://", 1)[1]
     base_url = os.getenv("BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+    trusted_hosts = None
+    if production:
+        trusted_hosts = [urlparse(base_url).hostname]
+        for value in os.getenv("TRUSTED_HOSTS", "").split(","):
+            host = value.strip().lower()
+            if not host:
+                continue
+            if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*", host):
+                raise RuntimeError("TRUSTED_HOSTS musí obsahovať konkrétne názvy hostiteľov bez URL, portov a zástupných znakov.")
+            if host not in trusted_hosts:
+                trusted_hosts.append(host)
     return {
         "PRODUCTION": production,
         "SECRET_KEY": os.getenv("SECRET_KEY", ""),
         "ENCRYPTION_KEY": os.getenv("ENCRYPTION_KEY", ""),
         "BASE_URL": base_url,
-        "TRUSTED_HOSTS": [urlparse(base_url).hostname] if production else None,
+        "TRUSTED_HOSTS": trusted_hosts,
         "SQLALCHEMY_DATABASE_URI": database_url,
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
         "SQLALCHEMY_ENGINE_OPTIONS": {"pool_pre_ping": True},
