@@ -1,0 +1,42 @@
+services:
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://portal:${POSTGRES_PASSWORD}@db:5432/portal
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    command: ["sh", "-c", "flask --app app:create_app init-db && exec gunicorn --no-control-socket --bind 0.0.0.0:8080 --workers 2 --timeout 60 'app:create_app()'"]
+    ports: ["127.0.0.1:5000:8080"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    restart: unless-stopped
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://portal:${POSTGRES_PASSWORD}@db:5432/portal
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    command: ["python", "worker.py"]
+    depends_on:
+      web: {condition: service_started}
+      db: {condition: service_healthy}
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: portal
+      POSTGRES_DB: portal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["portal-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d portal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+volumes:
+  portal-db:
