@@ -272,6 +272,7 @@ def create_app(test_config=None):
         return render_template("detail.html", inquiry=inquiry, data=data, metrics=financial_profile(data),
                                analysis=inquiry.analysis, proposal=proposal, comparison=compare_proposal(data, proposal) if proposal else None,
                                documents=document_checklist(data), jobs=jobs, summaries=summaries, errors=errors or [],
+                               can_retry_unavailable_ai=inquiry.ai_status == "unavailable" and data.get("ai_consent") is True,
                                values=values if values is not None else proposal or {})
 
     @app.get("/klienti/<inquiry_id>")
@@ -367,12 +368,17 @@ def create_app(test_config=None):
     def retry_job(inquiry_id, job_id):
         inquiry = owned_inquiry(inquiry_id)
         job = db.session.get(Job, job_id)
-        if not job or job.inquiry_id != inquiry.id or job.status not in ("failed", "blocked", "uncertain"):
+        if not job or job.inquiry_id != inquiry.id:
+            abort(400)
+        retry_unavailable_ai = (job.kind == "analyze" and job.status == "done"
+                                and inquiry.ai_status == "unavailable" and inquiry.data.get("ai_consent") is True)
+        if job.status not in ("failed", "blocked", "uncertain") and not retry_unavailable_ai:
             abort(400)
         if job.status == "uncertain" and request.form.get("duplicate_ack") != "1":
             flash("Najskôr overte stav u poskytovateľa; opakovanie môže vytvoriť duplicitný e-mail.", "error")
             return redirect(url_for("detail", inquiry_id=inquiry.id))
         job.status, job.attempts, job.available_at = "pending", 0, utcnow()
+        job.last_error = None
         if job.summary_id:
             db.session.get(Summary, job.summary_id).delivery_status = "pending"
         if job.kind == "analyze":
