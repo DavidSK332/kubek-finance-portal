@@ -1,5 +1,8 @@
+import base64
+import http.client
 import io
 import json
+import urllib.error
 from datetime import timedelta
 
 import httpx
@@ -13,7 +16,7 @@ import worker
 from ai_analysis import ai_input, fallback_analysis
 from conftest import login, proposal_form
 from database import Inquiry, Job, Summary, db, enqueue, utcnow
-from email_service import DeliveryUncertain, MailConfigurationError
+from email_service import DeliveryRejected, DeliveryUncertain, MailConfigurationError
 from pdf_service import build_report, report_text
 from reporting import make_snapshot
 
@@ -197,3 +200,115 @@ def test_sendgrid_adapter_posts_pdf_and_cc_over_https(app, monkeypatch):
     assert captured[0][0] == "https://api.sendgrid.com/v3/mail/send"
     assert captured[0][1]["personalizations"][0]["cc"] == [{"email": "agent1@example.org"}]
     assert captured[0][1]["attachments"][0]["filename"] == "financny-prehlad.pdf"
+
+
+RESEND_REFERENCE = "49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"
+
+
+class ResendResponse:
+    def __init__(self, status=200, body=None):
+        self.status = status
+        self.body = json.dumps({"id": RESEND_REFERENCE}).encode() if body is None else body
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def read(self, size): return self.body[:size]
+
+
+def test_resend_posts_text_pdf_cc_and_stable_idempotency_key(app, monkeypatch):
+    captured = []
+    def fake_open(request, timeout):
+        captured.append((request, timeout))
+        return ResendResponse()
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", fake_open)
+    pdf = b"%PDF-fictitious-report"
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM="info@kubekfinance.sk",
+                          RESEND_API_KEY="fake-test-key", ORGANIZATION_NAME="KUBEK Finance")
+        for _ in range(2):
+            reference = email_service.deliver(to="klient@example.org", cc="agent1@example.org", subject="Prehľad",
+                                             body="Váš finančný prehľad", message_key="summary-123", pdf=pdf)
+            assert reference == RESEND_REFERENCE
+    for request, timeout in captured:
+        assert request.full_url == "https://api.resend.com/emails"
+        assert request.get_method() == "POST"
+        assert timeout == 30
+        headers = {key.lower(): value for key, value in request.header_items()}
+        assert headers["authorization"] == "Bearer fake-test-key"
+        assert headers["idempotency-key"] == "summary-123"
+        assert headers["content-type"] == "application/json"
+        payload = json.loads(request.data)
+        assert payload["from"] == "KUBEK Finance <info@kubekfinance.sk>"
+        assert payload["to"] == ["klient@example.org"]
+        assert payload["cc"] == ["agent1@example.org"]
+        assert payload["text"] == "Váš finančný prehľad"
+        assert payload["subject"] == "Prehľad"
+        assert payload["attachments"][0]["filename"] == "financny-prehlad.pdf"
+        assert base64.b64decode(payload["attachments"][0]["content"]) == pdf
+    assert captured[0][0].data == captured[1][0].data
+
+
+def test_resend_omits_duplicate_cc_and_absent_attachment(app, monkeypatch):
+    captured = []
+    def fake_open(request, timeout):
+        captured.append(json.loads(request.data))
+        return ResendResponse()
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", fake_open)
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM="info@kubekfinance.sk", RESEND_API_KEY="fake-test-key")
+        email_service.deliver(to="info@kubekfinance.sk", cc="info@kubekfinance.sk", subject="Test",
+                              body="Fiktívny test", message_key="agent-1")
+    assert "cc" not in captured[0]
+    assert "attachments" not in captured[0]
+
+
+@pytest.mark.parametrize("sender,key", [("info@kubekfinance.sk", ""), ("", "fake-test-key")])
+def test_resend_requires_configuration_before_network_request(app, monkeypatch, sender, key):
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", lambda *args, **kwargs: pytest.fail("Must not send"))
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM=sender, RESEND_API_KEY=key)
+        with pytest.raises(MailConfigurationError):
+            email_service.deliver(to="info@kubekfinance.sk", subject="Test", body="Test", message_key="agent-1")
+
+
+@pytest.mark.parametrize("status,error", [
+    (400, DeliveryRejected), (401, MailConfigurationError), (403, MailConfigurationError),
+    (408, DeliveryUncertain), (409, DeliveryUncertain), (422, DeliveryRejected),
+    (429, DeliveryRejected), (500, DeliveryUncertain), (503, DeliveryUncertain),
+])
+def test_resend_classifies_http_failures_without_exposing_provider_body(app, monkeypatch, status, error):
+    def fake_open(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, status, "provider-secret-details", {},
+                                     io.BytesIO(b"private-client-data and provider-secret-details"))
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", fake_open)
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM="info@kubekfinance.sk", RESEND_API_KEY="fake-test-key")
+        with pytest.raises(error) as caught:
+            email_service.deliver(to="info@kubekfinance.sk", subject="Test", body="Test", message_key="agent-1")
+    assert str(caught.value) == f"RESEND_HTTP_{status}"
+
+
+@pytest.mark.parametrize("status,body", [
+    (202, b"{}"), (200, b"private-provider-reply"), (200, b"{}"), (200, b"[]"),
+    (200, b'{"id": null}'), (200, b'{"id": 123}'), (200, b'{"id": "not-a-provider-id"}'),
+    (200, b"\xff"), (200, b"x" * 65537),
+], ids=["unexpected-status", "non-json", "missing-id", "non-object", "null-id", "numeric-id",
+        "malformed-id", "invalid-utf8", "oversized"])
+def test_resend_never_accepts_an_invalid_acknowledgement(app, monkeypatch, status, body):
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", lambda *args, **kwargs: ResendResponse(status, body))
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM="info@kubekfinance.sk", RESEND_API_KEY="fake-test-key")
+        with pytest.raises(DeliveryUncertain) as caught:
+            email_service.deliver(to="info@kubekfinance.sk", subject="Test", body="Test", message_key="agent-1")
+    assert "provider-reply" not in str(caught.value)
+
+
+@pytest.mark.parametrize("failure", [TimeoutError("private-error"), urllib.error.URLError("private-error"),
+                                     http.client.IncompleteRead(b"private-reply", 100)])
+def test_resend_transport_failures_remain_uncertain(app, monkeypatch, failure):
+    def fake_open(request, timeout):
+        raise failure
+    monkeypatch.setattr(email_service.urllib.request, "urlopen", fake_open)
+    with app.app_context():
+        app.config.update(EMAIL_BACKEND="resend", MAIL_FROM="info@kubekfinance.sk", RESEND_API_KEY="fake-test-key")
+        with pytest.raises(DeliveryUncertain, match="^RESEND_CONNECTION_LOST$"):
+            email_service.deliver(to="info@kubekfinance.sk", subject="Test", body="Test", message_key="agent-1")
