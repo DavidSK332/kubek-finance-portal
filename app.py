@@ -110,7 +110,7 @@ def create_app(test_config=None):
             "pri existujúcich dátach kľúč nemeňte."
         ) from None
     if app.config["PRODUCTION"]:
-        required = ("CONTROLLER_NAME", "CONTROLLER_ADDRESS", "PRIVACY_EMAIL")
+        required = ("CONTROLLER_NAME", "PRIVACY_EMAIL")
         if not app.config["BASE_URL"].startswith("https://") or any(not app.config[k] for k in required):
             raise RuntimeError("Produkcia vyžaduje HTTPS BASE_URL a údaje prevádzkovateľa v .env.")
     if app.config["TRUST_PROXY"]:

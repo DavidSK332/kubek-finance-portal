@@ -210,7 +210,7 @@ docker compose logs --tail=100 web worker
 
 Otvorte `http://127.0.0.1:5000`. Web pri prvom štarte vytvorí tabuľky. Worker môže pred dokončením inicializácie krátko reštartovať; politika reštartu ho obnoví. Zmeny schémy pri budúcich verziách riešte migráciami, nie opakovaným `create_all`.
 
-V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.vasa-firma.sk` a skutočné `CONTROLLER_NAME`, `CONTROLLER_ADDRESS`, `PRIVACY_EMAIL`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
+V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.vasa-firma.sk`, skutočný `CONTROLLER_NAME` a primárny kontaktný e-mail `PRIVACY_EMAIL=info@kubekfinance.sk`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
 
 ## 9. GitHub → Railway: web, worker, PostgreSQL a Redis
 
@@ -233,8 +233,7 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
    TRUST_PROXY=1
    ORGANIZATION_NAME="KUBEK Finance"
    CONTROLLER_NAME="SKUTOCNY_PREVADZKOVATEL"
-   CONTROLLER_ADDRESS="SKUTOCNA_ADRESA"
-   PRIVACY_EMAIL=kontakt@vasa-firma.sk
+   PRIVACY_EMAIL=info@kubekfinance.sk
    EMAIL_BACKEND=disabled
    OPENAI_MODEL=gpt-4o-mini
    RETENTION_DAYS=180
