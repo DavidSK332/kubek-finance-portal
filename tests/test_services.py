@@ -236,6 +236,7 @@ def test_resend_posts_text_pdf_cc_and_stable_idempotency_key(app, monkeypatch):
         assert headers["authorization"] == "Bearer fake-test-key"
         assert headers["idempotency-key"] == "summary-123"
         assert headers["content-type"] == "application/json"
+        assert headers["user-agent"] == "KUBEK-Finance-Portal/1.0"
         payload = json.loads(request.data)
         assert payload["from"] == "KUBEK Finance <info@kubekfinance.sk>"
         assert payload["to"] == ["klient@example.org"]
