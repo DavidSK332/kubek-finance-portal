@@ -46,6 +46,8 @@ def settings():
         "SENDGRID_API_KEY": os.getenv("SENDGRID_API_KEY", ""),
         "ORGANIZATION_NAME": os.getenv("ORGANIZATION_NAME", "KUBEK Finance"),
         "CONTROLLER_NAME": os.getenv("CONTROLLER_NAME", ""),
+        "CONTROLLER_ICO": os.getenv("CONTROLLER_ICO", "55012469"),
+        "CONTROLLER_DIC": os.getenv("CONTROLLER_DIC", "2121841821"),
         "PRIVACY_EMAIL": os.getenv("PRIVACY_EMAIL", "info@kubekfinance.sk"),
         "RETENTION_DAYS": int(os.getenv("RETENTION_DAYS", "180")),
         "PRIVACY_VERSION": "2026-10-18-v1",
