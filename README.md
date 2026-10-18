@@ -233,6 +233,8 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
    TRUST_PROXY=1
    ORGANIZATION_NAME="KUBEK Finance"
    CONTROLLER_NAME="SKUTOCNY_PREVADZKOVATEL"
+   CONTROLLER_ICO=55012469
+   CONTROLLER_DIC=2121841821
    PRIVACY_EMAIL=info@kubekfinance.sk
    EMAIL_BACKEND=disabled
    OPENAI_MODEL=gpt-4o-mini

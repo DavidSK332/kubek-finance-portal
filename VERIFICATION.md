@@ -28,7 +28,9 @@ Pri kontrole existujúceho nasadenia bol zistený neplatný `ENCRYPTION_KEY` a n
 - Notifikácia je očakávane `blocked`, pretože `EMAIL_BACKEND=disabled`. Nebol odoslaný skutočný e-mail ani vykonané živé OpenAI volanie.
 - Používateľ vytvoril prihlasovací účet priamo v Railway konzole; heslo nie je súčasťou projektu ani overovacích záznamov.
 
-Fiktívny dopyt zostal označený ako test pre kontrolu v dashboarde. Kompletný postup uloženia návrhu a odoslania sumarizácie v produkcii sa zatiaľ nevykonal; tieto scenáre pokrývajú automatizované testy. Pred klientskou prevádzkou zostáva doplniť skutočnú adresu prevádzkovateľa a podľa potreby API/e-mailové údaje.
+Fiktívny dopyt zostal označený ako test pre kontrolu v dashboarde. Kompletný postup uloženia návrhu a odoslania sumarizácie v produkcii sa zatiaľ nevykonal; tieto scenáre pokrývajú automatizované testy. Podľa potreby zostáva doplniť API/e-mailové údaje.
+
+Aktuálna úprava nastavuje primárny kontaktný e-mail na `info@kubekfinance.sk`, dopĺňa IČO `55012469` a DIČ `2121841821` a odstraňuje adresu prevádzkovateľa z aplikácie aj konfigurácie. Nasadenie bolo overené: stránka kontaktu aj prihlásenie vracajú HTTP 200, kontakt obsahuje obe identifikačné čísla a klikateľný e-mail; adresa sa nezobrazuje. Prihlásenie predvyplní info@kubekfinance.sk. Všetkých 6 kontrol konfigurácie prešlo bez adresy prevádzkovateľa. Všetky štyri služby sú online.
 
 Lokálny Docker build, úplný automatizovaný PostgreSQL/Redis integračný test ani odosielanie skutočných správ neprebehli. Cloudový Docker build, štart služieb a vizuálna kontrola prihlasovacej stránky i odoslania dotazníka prebehli cez Railway a Chrome.
 
