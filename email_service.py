@@ -128,7 +128,8 @@ def deliver_resend(cfg, *, sender, recipient, copy, subject, body, message_key, 
     request = urllib.request.Request(
         "https://api.resend.com/emails", data=json.dumps(payload).encode("utf-8"),
         headers={"Authorization": f"Bearer {cfg['RESEND_API_KEY']}",
-                 "Content-Type": "application/json", "Idempotency-Key": message_key}, method="POST",
+                 "Content-Type": "application/json", "Idempotency-Key": message_key,
+                 "User-Agent": "KUBEK-Finance-Portal/1.0"}, method="POST",
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
