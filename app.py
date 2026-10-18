@@ -98,7 +98,17 @@ def create_app(test_config=None):
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     if len(app.config["SECRET_KEY"]) < 32:
         raise RuntimeError("Nastavte SECRET_KEY. Lokálne spustite python init_env.py.")
-    Fernet(app.config["ENCRYPTION_KEY"].encode())
+    try:
+        encryption_key = app.config["ENCRYPTION_KEY"]
+        if not isinstance(encryption_key, str) or not encryption_key:
+            raise ValueError
+        Fernet(encryption_key.encode("ascii"))
+    except (ValueError, TypeError, UnicodeEncodeError):
+        raise RuntimeError(
+            "ENCRYPTION_KEY chýba alebo nie je platný kľúč Fernet. "
+            "Nastavte pôvodnú hodnotu z .env (rovnakú pre web aj worker); "
+            "pri existujúcich dátach kľúč nemeňte."
+        ) from None
     if app.config["PRODUCTION"]:
         required = ("CONTROLLER_NAME", "CONTROLLER_ADDRESS", "PRIVACY_EMAIL")
         if not app.config["BASE_URL"].startswith("https://") or any(not app.config[k] for k in required):
