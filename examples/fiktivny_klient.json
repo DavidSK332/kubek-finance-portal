@@ -1,0 +1,47 @@
+{
+  "first_name": "Mária",
+  "last_name": "Ukážková",
+  "email": "klient@example.org",
+  "phone": "+421 900 000 000",
+  "age": 34,
+  "children": 1,
+  "adults": 2,
+  "income_employment": "3000",
+  "income_business": "0",
+  "income_company": "0",
+  "income_other": "0",
+  "expenses": "1200",
+  "savings": "6000",
+  "debts": [
+    {
+      "id": "debt-1",
+      "kind": "mortgage",
+      "lender": "Pôvodná banka",
+      "balance": "85000",
+      "payment": "480",
+      "rate": "4.9",
+      "limit": "0"
+    },
+    {
+      "id": "debt-2",
+      "kind": "consumer",
+      "lender": "Iný poskytovateľ",
+      "balance": "5000",
+      "payment": "150",
+      "rate": "9",
+      "limit": "0"
+    }
+  ],
+  "goals": [
+    "refinance",
+    "life"
+  ],
+  "requested_loan": "90000",
+  "requested_years": 25,
+  "monthly_investment": "100",
+  "notes": "Fiktívna ukážka. Toto NIE SÚ údaje skutočného klienta.",
+  "privacy_acknowledged": true,
+  "ai_consent": false,
+  "privacy_version": "2026-10-18-v1",
+  "submitted_at": "2026-10-18T09:30:00Z"
+}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import input, csrf, debt_row with context %}
+{% block title %}Váš finančný prehľad{% endblock %}
+{% block content %}
+<div class="questionnaire-layout">
+  <aside class="questionnaire-intro"><div class="eyebrow">KLIENTSKY DOTAZNÍK</div><h1>Začnime<br>vaším prehľadom.</h1><p>Pár údajov pomôže vášmu agentovi pochopiť, kde ste dnes a čo chcete dosiahnuť.</p><div class="contact-card"><div class="avatar">{{ agent.name[:1]|upper }}</div><div><small>VÁŠ FINANČNÝ AGENT</small><strong>{{ agent.name }}</strong><a href="mailto:{{ agent.email }}">{{ agent.email }}</a></div></div><p class="small muted">Pripravte si čisté mesačné príjmy a aktuálne zostatky úverov. Sumy uvádzajte v eurách.</p><div class="note">Do poznámok nevkladajte rodné čísla, heslá, čísla kariet ani zdravotné údaje.</div></aside>
+  <section class="questionnaire-content">
+  {% if errors %}<div class="alert error" role="alert"><strong>Skontrolujte formulár</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+  <form method="post" id="client-form" data-wizard>
+    {{ csrf() }}<input type="hidden" name="submission_key" value="{{ submission_key }}">
+    <div class="honeypot" aria-hidden="true"><label>Webová stránka<input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <div class="stepper" aria-label="Kroky formulára"><span data-step-label>01 Údaje</span><span data-step-label>02 Príjmy</span><span data-step-label>03 Záväzky</span><span data-step-label>04 Ciele</span><span data-step-label>05 Odoslanie</span></div>
+    <section class="card form-section" data-step><div class="eyebrow">01 / O VÁS</div><h2>Základné údaje</h2><p class="muted">Kontaktné údaje použije agent na vybavenie vašej žiadosti.</p><div class="form-grid">
+      {{ input('first_name','Meno',values,required=true) }}{{ input('last_name','Priezvisko',values,required=true) }}
+      {{ input('email','E-mail',values,type='email',required=true) }}{{ input('phone','Telefón',values,type='tel',required=true,placeholder='+421 900 000 000') }}
+      {{ input('age','Vek',values,type='number',min=18,max=110,required=true) }}{{ input('children','Počet detí',values,type='number',min=0,max=30,default=0,required=true) }}
+      {{ input('adults','Počet dospelých v domácnosti',values,type='number',min=1,max=10,default=1,required=true) }}
+    </div></section>
+    <section class="card form-section" data-step><div class="eyebrow">02 / PRÍJMY A REZERVA</div><h2>S čím mesačne pracujete</h2><p class="muted">Uvádzajte čistý príjem domácnosti po daniach a odvodoch. Príjem zo s.r.o. je váš osobný príjem, nie obrat firmy. Rovnaký príjem nezapočítavajte dvakrát.</p><div class="form-grid">
+      {{ input('income_employment','Zamestnanie / TPP mesačne',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true) }}
+      {{ input('income_business','Živnosť mesačne',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true) }}
+      {{ input('income_company','Osobný príjem zo s.r.o. mesačne',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true) }}
+      {{ input('income_other','Ostatné príjmy mesačne',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true,hint='Napríklad čistý prenájom, dávky či rodičovský príspevok.') }}
+      {{ input('savings','Dostupná finančná rezerva',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true,hint='Celková suma úspor, ktorú máte k dispozícii.') }}
+    </div><div class="note">Banka môže jednotlivé príjmy uznať v inom rozsahu. Tu vytvárame prehľad podľa vašich údajov.</div></section>
+    <section class="card form-section" data-step><div class="eyebrow">03 / VÝDAVKY A ZÁVÄZKY</div><h2>Čo z rozpočtu odchádza</h2>{{ input('expenses','Bežné mesačné výdavky domácnosti',values,type='number',min=0,max=1000000000,step='0.01',default=0,required=true,hint='Bývanie, jedlo, doprava, poistky a ostatné výdavky. Bez splátok úverov zadaných nižšie.') }}<hr><div class="section-heading"><div><h3>Existujúce úvery a záväzky</h3><p class="small muted">Každý úver pridajte samostatne. Ak žiadny nemáte, pokračujte.</p></div><button class="button secondary small-button" type="button" data-add-debt>+ Pridať záväzok</button></div><div id="debt-list">{% for debt in debts %}{{ debt_row(debt,debt_types) }}{% endfor %}</div><template id="debt-template">{{ debt_row({},debt_types) }}</template></section>
+    <section class="card form-section" data-step><div class="eyebrow">04 / VAŠE PRIORITY</div><h2>Čo chcete riešiť</h2><p class="muted">Môžete označiť viac možností.</p><div class="choice-grid">{% for key, name in goals.items() %}<label class="choice"><input type="checkbox" name="goals" value="{{ key }}" {% if key in (values.getlist('goals') if values.getlist is defined else values.get('goals',[])) %}checked{% endif %}><span>{{ name }}</span></label>{% endfor %}</div><div class="form-grid top-space">
+      {{ input('requested_loan','Požadovaná výška úveru',values,type='number',min=0,max=1000000000,step='0.01',default=0) }}
+      {{ input('requested_years','Požadovaná splatnosť v rokoch',values,type='number',min=1,max=40,default=30,required=true) }}
+      {{ input('monthly_investment','Plánovaná mesačná investícia',values,type='number',min=0,max=1000000000,step='0.01',default=0) }}
+    </div><label class="field"><span>Poznámky a doplňujúce informácie</span><textarea name="notes" rows="5" maxlength="3000" placeholder="Vaša predstava, termín alebo otázky pre agenta…">{{ values.get('notes','') }}</textarea><small>Najviac 3 000 znakov. Poznámky zostanú iba agentovi; do OpenAI sa neposielajú.</small></label></section>
+    <section class="card form-section" data-step><div class="eyebrow">05 / DOKONČENIE</div><h2>Pripravené pre vášho agenta</h2><p class="muted">Po odoslaní agent dostane váš finančný profil. Úverový alebo poistný návrh s vami prejde osobne.</p><label class="check-line"><input type="checkbox" name="privacy_acknowledged" value="1" required {% if values.get('privacy_acknowledged') %}checked{% endif %}><span>Oboznámil/a som sa s <a href="{{ url_for('privacy') }}" target="_blank" rel="noopener">informáciami o spracúvaní osobných údajov</a> a žiadam o prípravu finančného prehľadu a kontakt od agenta. <span class="required">*</span></span></label><label class="check-line"><input type="checkbox" name="ai_consent" value="1" {% if values.get('ai_consent') %}checked{% endif %}><span>Voliteľne súhlasím s použitím OpenAI na prípravu analytického komentára. Odosielajú sa finančné údaje, vek, zloženie domácnosti a zvolené ciele bez mena, kontaktov, názvov bánk a poznámok. Aj bez tejto voľby agent dostane údaje a výpočty.</span></label><p class="small muted">AI komentár je pracovný podklad pre agenta. Nejde o automatické rozhodnutie o úvere, poistení ani investícii.</p></section>
+    <div class="wizard-controls"><button class="button secondary" type="button" data-prev hidden>← Späť</button><span class="step-count" data-step-count></span><button class="button primary" type="button" data-next hidden>Pokračovať →</button><button class="button primary" type="submit" data-submit>Odoslať finančný prehľad →</button></div>
+  </form>
+  </section>
+</div>
+{% endblock %}

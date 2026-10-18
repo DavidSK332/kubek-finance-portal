@@ -28,8 +28,7 @@ kubek-finance-portal/
 ├── requirements-dev.txt
 ├── Dockerfile
 ├── docker-compose.yml
-├── railway.json             # webová služba
-├── railway-worker.json      # samostatný worker
+├── start-web.sh             # inicializácia databázy a štart webu
 └── README.md
 ```
 
@@ -213,18 +212,40 @@ Otvorte `http://127.0.0.1:5000`. Web pri prvom štarte vytvorí tabuľky. Worker
 
 V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.vasa-firma.sk` a skutočné `CONTROLLER_NAME`, `CONTROLLER_ADDRESS`, `PRIVACY_EMAIL`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
 
-## 9. Lacné nasadenie na Railway
+## 9. GitHub → Railway: web, worker, PostgreSQL a Redis
 
-Railway Hobby má základ 5 USD mesačne vrátane 5 USD použitia; vyššia spotreba sa dopláca. Cena celej aplikácie zahŕňa web, worker, databázu, prípadný Redis, e-mail a OpenAI. [Aktuálne plány](https://docs.railway.com/pricing/plans).
+Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json` a `railway-worker.json` tento postup nepoužíva.
 
-1. Nahrajte zdroj do svojho súkromného Git repozitára bez `.env`, databáz a obsahu `instance/`.
-2. V Railway projekte vytvorte PostgreSQL a Redis.
-3. Z rovnakého repozitára vytvorte službu web. Použite `railway.json` a pre-deploy príkaz `flask --app app:create_app init-db`.
-4. Vytvorte druhú službu worker. V nastavení konfiguračného súboru vyberte `/railway-worker.json`, aby nezdedila webový príkaz ani webový healthcheck.
-5. Obom službám nastavte rovnaké kľúče, databázové pripojenie a nastavenia z `.env.example`. Použite premenné služby PostgreSQL pre `DATABASE_URL`, Redis pre `RATELIMIT_STORAGE_URI` a HTTPS doménu webu pre `BASE_URL`.
-6. Nastavte produkčné údaje prevádzkovateľa, OpenAI a SMTP alebo SendGrid. Spustite služby. V shelli webovej služby vytvorte agenta príkazom z lokálneho návodu.
+1. Do súkromného GitHub repozitára nahrajte **celý obsah projektu vrátane priečinkov** `templates/`, `static/` a `assets/`. Na hlavnej úrovni musia byť `app.py`, `Dockerfile`, `requirements.txt` a `start-web.sh`. Nenahrávajte `.env`, `.venv`, `instance/` ani databázové súbory.
+2. V prázdnom Railway projekte pridajte PostgreSQL s názvom `Postgres` a Redis s názvom `Redis`.
+3. Z GitHub repozitára pridajte službu `web`. Použije sa dodaný `Dockerfile`. V **Settings → Deploy → Custom Start Command** nastavte `sh start-web.sh`. **Pre-deploy Command** a **Healthcheck Path** nechajte prázdne. Skript najskôr vytvorí databázové tabuľky a potom spustí Gunicorn na porte z premennej `PORT`.
+4. Vo `web → Settings → Networking` vygenerujte verejnú HTTPS doménu s cieľovým portom `8080`. Jej skutočnú adresu použite ako `BASE_URL`.
+5. Vo `web → Variables → RAW Editor` nastavte nasledujúce premenné. Ukážkové hodnoty nahraďte vlastnými:
 
-Používajte PostgreSQL, nie SQLite v dočasnom filesystéme kontajnera. Nastavenia služby overte v aktuálnom rozhraní Railway; nasadenie v tomto prostredí neprebehlo.
+   ```ini
+   APP_ENV=production
+   PORT=8080
+   BASE_URL=https://TVOJA-SKUTOCNA-DOMENA.up.railway.app
+   SECRET_KEY=POVODNA_HODNOTA_Z_ENV
+   ENCRYPTION_KEY=POVODNA_HODNOTA_Z_ENV
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   RATELIMIT_STORAGE_URI=${{Redis.REDIS_URL}}
+   TRUST_PROXY=1
+   ORGANIZATION_NAME="KUBEK Finance"
+   CONTROLLER_NAME="SKUTOCNY_PREVADZKOVATEL"
+   CONTROLLER_ADDRESS="SKUTOCNA_ADRESA"
+   PRIVACY_EMAIL=kontakt@vasa-firma.sk
+   EMAIL_BACKEND=disabled
+   OPENAI_MODEL=gpt-4o-mini
+   RETENTION_DAYS=180
+   ```
+
+   `SECRET_KEY` má mať aspoň 32 znakov. `ENCRYPTION_KEY` skopírujte presne: kľúč vytvorený cez `init_env.py` má 44 znakov a končí `=`. Nevkladajte názov premennej, úvodzovky navyše ani ukážkový text. Pri existujúcich dátach šifrovací kľúč nikdy svojvoľne nemeňte; použite pôvodnú hodnotu zo zálohy.
+6. Uložte nastavenia a nasaďte `web`. Až po jeho úspešnom štarte pridajte z rovnakého repozitára službu `worker` so štartovacím príkazom `python worker.py`. Skopírujte do nej rovnaké premenné; najmä kľúče, `DATABASE_URL` a `BASE_URL` musia byť zhodné. Worker nemá verejnú doménu ani HTTP healthcheck.
+7. V shelli bežiaceho webu (`railway ssh --service web` po prihlásení a prepojení Railway CLI) spustite `flask --app app:create_app create-agent`. Zadajte skutočný e-mail, meno a vlastné heslo s najmenej 12 znakmi. Potom otvorte HTTPS adresu a prihláste sa.
+8. Najskôr overte dotazník, dashboard a PDF na fiktívnych údajoch. AI a e-maily sú voliteľné: OpenAI zapnete doplnením `OPENAI_API_KEY` do oboch služieb, e-maily podľa časti 6 cez SMTP alebo SendGrid. Dostupnosť SMTP závisí od hostingu, plánu a poskytovateľa; overte ju pre svoj účet. Po zmene nastavení reštartujte obe služby a zablokované e-mailové úlohy zopakujte v detaile klienta.
+
+Pri zmene verejnej domény aktualizujte `BASE_URL` v oboch službách. Používajte trvalý PostgreSQL, pretože kontajnerový filesystém nie je úložisko databázy. Cena zahŕňa všetky štyri služby a prípadné API; pozrite [aktuálne plány Railway](https://docs.railway.com/pricing/plans). Stav vykonaných kontrol je v `VERIFICATION.md`.
 
 ## 10. Nasadenie na Render
 
