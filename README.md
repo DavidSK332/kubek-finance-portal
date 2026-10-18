@@ -149,7 +149,7 @@ V Resende vytvorte účet, pridajte svoju odosielaciu doménu a overte jej DNS z
 
 Resend používa HTTPS a funguje aj na nižších plánoch Railway. Jeho bezplatný plán má 3 000 správ mesačne a 100 denne; aktuálne limity sú v [cenníku Resendu](https://resend.com/pricing). SMTP je v Railway dostupné až od Pro podľa [dokumentácie Railway](https://docs.railway.com/networking/outbound-networking).
 
-Príjem pošty pre `kubekfinance.sk` zostáva vo Websupporte: koreňové MX záznamy `mx10.websupport.sk` s prioritou 10 a `mx20.websupport.sk` s prioritou 100. SPF pre Websupport je samostatný koreňový TXT záznam. Záznamy Resendu pre `send` a `resend._domainkey` neprerábajú príjmovú schránku. Presné hodnoty DKIM poskytne Resend.
+Príjem pošty pre `kubekfinance.sk` zostáva vo Websupporte: koreňové MX záznamy `mx10.websupport.sk` s prioritou 10 a `mx20.websupport.sk` s prioritou 100. SPF pre Websupport je samostatný koreňový TXT záznam. Záznamy Resendu pre `send`, `rsend` a `resend._domainkey` nemenia príjmovú schránku. Presné hodnoty DNS poskytne Resend.
 
 ### Možnosť A - SMTP
 
@@ -261,7 +261,7 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
    `SECRET_KEY` má mať aspoň 32 znakov. `ENCRYPTION_KEY` skopírujte presne: kľúč vytvorený cez `init_env.py` má 44 znakov a končí `=`. Nevkladajte názov premennej, úvodzovky navyše ani ukážkový text. Pri existujúcich dátach šifrovací kľúč nikdy svojvoľne nemeňte; použite pôvodnú hodnotu zo zálohy.
 6. Uložte nastavenia a nasaďte `web`. Až po jeho úspešnom štarte pridajte z rovnakého repozitára službu `worker` so štartovacím príkazom `python worker.py`. Skopírujte do nej rovnaké premenné; najmä kľúče, `DATABASE_URL` a `BASE_URL` musia byť zhodné. Worker nemá verejnú doménu ani HTTP healthcheck.
 7. V shelli bežiaceho webu (`railway ssh --service web` po prihlásení a prepojení Railway CLI) spustite `flask --app app:create_app create-agent`. Zadajte skutočný e-mail, meno a vlastné heslo s najmenej 12 znakmi. Potom otvorte HTTPS adresu a prihláste sa.
-8. Najskôr overte dotazník, dashboard a PDF na fiktívnych údajoch. AI a e-maily sú voliteľné: OpenAI zapnete doplnením `OPENAI_API_KEY` do oboch služieb, e-maily podľa časti 6 cez SMTP alebo SendGrid. Dostupnosť SMTP závisí od hostingu, plánu a poskytovateľa; overte ju pre svoj účet. Po zmene nastavení reštartujte obe služby a zablokované e-mailové úlohy zopakujte v detaile klienta.
+8. Najskôr overte dotazník, dashboard a PDF na fiktívnych údajoch. AI zapnete doplnením `OPENAI_API_KEY` do oboch služieb; účet OpenAI musí mať dostupný API kredit. Pre e-maily na Railway použite odporúčaný Resend z časti 6. Po zmene nastavení nasaďte obe služby a zablokované e-mailové úlohy zopakujte v detaile klienta.
 
 Pri zmene verejnej domény aktualizujte `BASE_URL` a `TRUSTED_HOSTS` v oboch službách. `TRUSTED_HOSTS` obsahuje konkrétne názvy povolených hostiteľov oddelené čiarkami, bez `https://`, portov a zástupných znakov; pôvodná Railway doména môže zostať povolená na kontrolu služby. Používajte trvalý PostgreSQL, pretože kontajnerový filesystém nie je úložisko databázy. Cena zahŕňa všetky štyri služby a prípadné API; pozrite [aktuálne plány Railway](https://docs.railway.com/pricing/plans). Stav vykonaných kontrol je v `VERIFICATION.md`.
 
@@ -313,6 +313,6 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-Testy pokrývajú vzorce vrátane nulového príjmu a úroku, kartové limity, čiastočne vybrané refinancovanie, odmietnutie záporných/nekonečných hodnôt, oddelenie agentov, CSRF, blokovanie prihlásenia, dvojité odoslanie, súbežne zmenené návrhy, nemenné reporty, šifrovanie, mazanie súvisiacich záznamov, AI s minimálnym vstupom a štruktúrovaným výstupom, opakovanie úloh, výpadky a oba e-mailové adaptéry. OpenAI aj e-mailový prenos sú v testoch simulované; testy nič neposielajú.
+Testy pokrývajú vzorce vrátane nulového príjmu a úroku, kartové limity, čiastočne vybrané refinancovanie, odmietnutie záporných/nekonečných hodnôt, oddelenie agentov, CSRF, blokovanie prihlásenia, dvojité odoslanie, súbežne zmenené návrhy, nemenné reporty, šifrovanie, mazanie súvisiacich záznamov, AI s minimálnym vstupom a štruktúrovaným výstupom, opakovanie úloh, výpadky a adaptéry SMTP, SendGrid a Resend. OpenAI aj e-mailový prenos sú v testoch simulované; testy nič neposielajú.
 
 Ukážkové PDF v `examples/` používa výlučne vymyslené údaje. Výsledok vykonaných kontrol a obmedzenia overenia sú v `VERIFICATION.md`.
