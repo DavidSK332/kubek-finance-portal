@@ -1,5 +1,6 @@
-"""TLS SMTP or SendGrid HTTPS. Never silently pretend to deliver an email."""
+"""TLS SMTP or HTTPS email providers. Never silently pretend to deliver an email."""
 import base64
+import http.client
 import json
 import smtplib
 import ssl
@@ -7,6 +8,7 @@ import urllib.error
 import urllib.request
 from email.message import EmailMessage
 from email.utils import formataddr
+from uuid import UUID
 
 from email_validator import validate_email
 from flask import current_app
@@ -33,7 +35,7 @@ def address(value):
 def deliver(*, to, subject, body, message_key, cc=None, pdf=None):
     cfg = current_app.config
     backend = cfg["EMAIL_BACKEND"]
-    if backend not in ("smtp", "sendgrid") or not cfg["MAIL_FROM"]:
+    if backend not in ("smtp", "sendgrid", "resend") or not cfg["MAIL_FROM"]:
         raise MailConfigurationError("MAIL_NOT_CONFIGURED")
     sender, recipient = address(cfg["MAIL_FROM"]), address(to)
     copy = address(cc) if cc else None
@@ -78,6 +80,9 @@ def deliver(*, to, subject, body, message_key, cc=None, pdf=None):
             if sending:
                 raise DeliveryUncertain(type(exc).__name__) from None
             raise DeliveryRejected(type(exc).__name__) from None
+    if backend == "resend":
+        return deliver_resend(cfg, sender=sender, recipient=recipient, copy=copy,
+                              subject=subject, body=body, message_key=message_key, pdf=pdf)
     if not cfg["SENDGRID_API_KEY"]:
         raise MailConfigurationError("SENDGRID_KEY_REQUIRED")
     personalization = {"to": [{"email": recipient}]}
@@ -108,3 +113,47 @@ def deliver(*, to, subject, body, message_key, cc=None, pdf=None):
         raise DeliveryUncertain(f"SENDGRID_HTTP_{exc.code}") from None
     except (OSError, urllib.error.URLError):
         raise DeliveryUncertain("SENDGRID_CONNECTION_LOST") from None
+
+
+def deliver_resend(cfg, *, sender, recipient, copy, subject, body, message_key, pdf):
+    if not cfg["RESEND_API_KEY"]:
+        raise MailConfigurationError("RESEND_KEY_REQUIRED")
+    payload = {"from": formataddr((cfg["ORGANIZATION_NAME"], sender)),
+               "to": [recipient], "subject": subject, "text": body}
+    if copy:
+        payload["cc"] = [copy]
+    if pdf:
+        payload["attachments"] = [{"content": base64.b64encode(pdf).decode("ascii"),
+                                   "filename": "financny-prehlad.pdf"}]
+    request = urllib.request.Request(
+        "https://api.resend.com/emails", data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {cfg['RESEND_API_KEY']}",
+                 "Content-Type": "application/json", "Idempotency-Key": message_key}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            if response.status != 200:
+                raise DeliveryUncertain("RESEND_UNEXPECTED_STATUS")
+            # Require the documented acknowledgement; HTTP success alone is insufficient.
+            # Do not include provider response bodies in exceptions or persistent logs.
+            raw = response.read(65537)
+            if len(raw) > 65536:
+                raise DeliveryUncertain("RESEND_INVALID_RESPONSE")
+            try:
+                data = json.loads(raw)
+                reference = data.get("id") if isinstance(data, dict) else None
+                if not isinstance(reference, str) or len(reference) != 36:
+                    raise ValueError
+                UUID(reference)
+            except (ValueError, UnicodeDecodeError):
+                raise DeliveryUncertain("RESEND_INVALID_RESPONSE") from None
+            return reference
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise MailConfigurationError(f"RESEND_HTTP_{exc.code}") from None
+        # A conflicting key can refer to another in-flight or accepted request.
+        if 400 <= exc.code < 500 and exc.code not in (408, 409):
+            raise DeliveryRejected(f"RESEND_HTTP_{exc.code}") from None
+        raise DeliveryUncertain(f"RESEND_HTTP_{exc.code}") from None
+    except (OSError, urllib.error.URLError, http.client.HTTPException):
+        raise DeliveryUncertain("RESEND_CONNECTION_LOST") from None

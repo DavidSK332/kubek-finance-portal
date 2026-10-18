@@ -56,6 +56,7 @@ def settings():
         "SMTP_PASSWORD": os.getenv("SMTP_PASSWORD", ""),
         "SMTP_SECURITY": os.getenv("SMTP_SECURITY", "starttls"),
         "SENDGRID_API_KEY": os.getenv("SENDGRID_API_KEY", ""),
+        "RESEND_API_KEY": os.getenv("RESEND_API_KEY", ""),
         "ORGANIZATION_NAME": os.getenv("ORGANIZATION_NAME", "KUBEK Finance"),
         "CONTROLLER_NAME": os.getenv("CONTROLLER_NAME", ""),
         "CONTROLLER_ICO": os.getenv("CONTROLLER_ICO", "55012469"),

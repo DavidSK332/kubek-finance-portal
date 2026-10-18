@@ -137,6 +137,20 @@ Oficiálne zdroje: [GPT-4o-mini](https://developers.openai.com/api/docs/models/g
 
 ## 6. Zapnutie e-mailov
 
+### Odporúčané pre Railway – Resend cez HTTPS
+
+```dotenv
+EMAIL_BACKEND=resend
+MAIL_FROM=info@kubekfinance.sk
+RESEND_API_KEY=
+```
+
+V Resende vytvorte účet, pridajte svoju odosielaciu doménu a overte jej DNS záznamy. API kľúč vložte iba do Railway, nikdy do zdrojov. Worker môže používať referencie `${{web.RESEND_API_KEY}}`, `${{web.EMAIL_BACKEND}}` a `${{web.MAIL_FROM}}`. Po nastavení nasaďte obe služby a v detaile klienta zopakujte zablokovanú e-mailovú úlohu. Staršiu AI analýzu so stavom „OpenAI nie je nastavené“ možno zopakovať tlačidlom „Zopakovať AI analýzu“, iba ak klient pôvodne súhlasil s AI.
+
+Resend používa HTTPS a funguje aj na nižších plánoch Railway. Jeho bezplatný plán má 3 000 správ mesačne a 100 denne; aktuálne limity sú v [cenníku Resendu](https://resend.com/pricing). SMTP je v Railway dostupné až od Pro podľa [dokumentácie Railway](https://docs.railway.com/networking/outbound-networking).
+
+Príjem pošty pre `kubekfinance.sk` zostáva vo Websupporte: koreňové MX záznamy `mx10.websupport.sk` s prioritou 10 a `mx20.websupport.sk` s prioritou 100. SPF pre Websupport je samostatný koreňový TXT záznam. Záznamy Resendu pre `send` a `resend._domainkey` neprerábajú príjmovú schránku. Presné hodnoty DKIM poskytne Resend.
+
 ### Možnosť A - SMTP
 
 ```dotenv
