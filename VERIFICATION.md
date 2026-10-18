@@ -4,22 +4,33 @@ Dátum: 18. 10. 2026. Prostredie: Windows, Python 3.12.14, samostatné virtuáln
 
 | Kontrola | Výsledok |
 |---|---|
-| `python -m pytest -q` | Všetkých 42 testov úspešných |
+| `python -m pytest -q` | Všetkých 43 testov úspešných |
 | Neplatný alebo chýbajúci `ENCRYPTION_KEY` | 4 regresné prípady; zrozumiteľná chyba bez vypísania hodnoty kľúča |
 | Platná produkčná konfigurácia | HTTPS prihlasovacia stránka, bezpečnostné hlavičky a `/healthz` po vytvorení schémy úspešné |
+| HTTPS formulár a CSRF | Regresný test zachováva `Referrer-Policy: same-origin`; platný token a rovnaký pôvod prejdú, chýbajúci alebo cudzí Referer vracia 400 |
 | Výpočty | 15 testov vrátane nulového príjmu/úroku, refinancovania a validácie vstupov |
 | Webové routy | 11 testov vrátane skutočného CSRF tokenu, oddelenia agentov a nemenných sumarizácií |
 | Worker, AI, PDF a e-mailové adaptéry | 11 testov; OpenAI a prenos SMTP/SendGrid simulované |
 
-Testy používajú dočasnú SQLite databázu. Produkčný PostgreSQL, Redis a správanie Railway tým nie sú overené. Validácia šifrovacieho kľúča pôvodnú hodnotu nemení ani automaticky negeneruje novú.
+Automatizované testy používajú dočasnú SQLite databázu; živé overenie Railway je uvedené nižšie. Validácia šifrovacieho kľúča pôvodnú hodnotu nemení ani automaticky negeneruje novú.
 
 ## Stav nasadenia
 
 Pri kontrole existujúceho nasadenia bol zistený neplatný `ENCRYPTION_KEY` a neúplný obsah GitHub repozitára bez priečinkov so šablónami, statickými súbormi a fontmi. Opravený zdroj obsahuje tieto súbory a návod používa nastavenia Railway dashboardu.
 
-**Overenie opraveného živého nasadenia zatiaľ čaká.** Úspešné lokálne testy neznamenajú úspešné nasadenie. Po nasadení treba overiť web, bežiaci worker, uloženie fiktívneho dotazníka, dokončenie analýzy a otvorenie PDF. Živé OpenAI volanie a skutočný e-mail sa overia až po doplnení príslušných prihlasovacích údajov.
+**Railway úspešne nasadil všetky štyri služby: web, worker, PostgreSQL a Redis.** Pri následnom živom teste HTTPS formulára sa objavila chyba 400: pôvodná hlavička `Referrer-Policy: no-referrer` bránila odoslaniu Referer potrebného na prísnu HTTPS kontrolu Flask-WTF. Oprava používa `same-origin` a zachováva kontrolu CSRF tokenu aj pôvodu; pribudol produkčný regresný test.
 
-V tomto overení neprebehol Docker build, Gunicorn v linuxovom kontajneri, PostgreSQL/Redis integračný beh, vizuálna kontrola v prehliadači ani odosielanie skutočných správ. Predchádzajúce tvrdenia o týchto kontrolách sa nepovažujú za nové overenie opravenej verzie.
+Živé overenie po oprave CSRF prešlo:
+- Verejné HTTPS `/login`, `/healthz`, CSS a JavaScript vrátili HTTP 200.
+- V prehliadači bol úspešne odoslaný päťkrokový formulár a zobrazené potvrdenie uloženia.
+- PostgreSQL obsahuje fiktívny dopyt „TEST Overenie nasadenia“. Worker dokončil úlohu `analyze`; bez voliteľného súhlasu s AI je stav `skipped`.
+- V produkčnom kontajneri sa z tohto dopytu vygenerovalo platné PDF s veľkosťou 47 759 bajtov.
+- Notifikácia je očakávane `blocked`, pretože `EMAIL_BACKEND=disabled`. Nebol odoslaný skutočný e-mail ani vykonané živé OpenAI volanie.
+- Používateľ vytvoril prihlasovací účet priamo v Railway konzole; heslo nie je súčasťou projektu ani overovacích záznamov.
+
+Fiktívny dopyt zostal označený ako test pre kontrolu v dashboarde. Kompletný postup uloženia návrhu a odoslania sumarizácie v produkcii sa zatiaľ nevykonal; tieto scenáre pokrývajú automatizované testy. Pred klientskou prevádzkou zostáva doplniť skutočnú adresu prevádzkovateľa a podľa potreby API/e-mailové údaje.
+
+Lokálny Docker build, úplný automatizovaný PostgreSQL/Redis integračný test ani odosielanie skutočných správ neprebehli. Cloudový Docker build, štart služieb a vizuálna kontrola prihlasovacej stránky i odoslania dotazníka prebehli cez Railway a Chrome.
 
 ## Fiktívny výpočtový príklad
 

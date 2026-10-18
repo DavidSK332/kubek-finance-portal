@@ -1,6 +1,6 @@
 # KUBEK Finance - klientsky a agentov portál
 
-Kompletný samostatne spustiteľný projekt v Pythone 3.12+. Flask obsluhuje verejný dotazník a interné stránky, SQLAlchemy databázu, worker spracúva AI a e-maily. Šablóny aj PDF sú po slovensky. Aplikácia sa nenasadila na verejný hosting a neobsahuje skutočné klientské údaje ani API kľúče.
+Kompletný samostatne spustiteľný projekt v Pythone 3.12+. Flask obsluhuje verejný dotazník a interné stránky, SQLAlchemy databázu, worker spracúva AI a e-maily. Šablóny aj PDF sú po slovensky. Stav vykonaných kontrol a nasadenia je v `VERIFICATION.md`. Zdrojový balík neobsahuje skutočné klientské údaje ani API kľúče.
 
 ## 1. Štruktúra projektu
 
