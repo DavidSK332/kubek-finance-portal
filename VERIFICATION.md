@@ -40,7 +40,7 @@ Skutočný testovací e-mail bez klientskych údajov na `info@kubekfinance.sk` m
 
 Pôvodná blokovaná úloha `notify_agent` č. 6 patriaca agentovi `info@kubekfinance.sk` bola zopakovaná cez portál a má stav `done`. Resend pri notifikácii s referenciou `01a14ee2-7227-79d2-9b49-a762dcea1091` potvrdil stav **delivered**. Doručenie testovacej správy aj pôvodnej notifikácie bolo overené v rozhraní Resendu; produkčná administrátorská konzola bola po overení zatvorená.
 
-`OPENAI_API_KEY` aj model `gpt-4o-mini` sú nastavené v oboch službách. AI je momentálne blokovaná kreditom poskytovateľa: živé volanie vrátilo HTTP 429, kód `credit_balance_exhausted`, a opakovanie pôvodnej úlohy č. 5 s uloženým súhlasom opäť skončilo `RateLimitError`. Fakturačná stránka organizácie „Test“, ku ktorej patrí aktívny kľúč, stále ukazuje `Free trial`, zostatok `$0.00` a možnosť `Add payment details`. Používateľ dostal presnú stránku na doplnenie kreditu; jeho predchádzajúce potvrdenie sa zatiaľ v tomto účte neprejavilo. Úspešnú AI analýzu treba potvrdiť po dostupnosti kreditu. Kľúč nechýba a konfigurácia je nastavená. Klientske údaje sa na AI posielajú iba pri uloženom súhlase.
+`OPENAI_API_KEY` aj model `gpt-4o-mini` sú nastavené v oboch službách. Po potvrdení dostupného kreditu bola pôvodná analytická úloha č. 5 s uloženým súhlasom zopakovaná cez portál a worker ju úspešne dokončil. Živé rozhranie potvrdilo **AI analýza hotová**, zdroj **OpenAI / gpt-4o-mini**, aj stav úlohy Analýza `done`. E-mail agentovi zostal `done`; deduplikácia fronty zachovala už dokončenú notifikáciu bez opätovného odoslania. Kredit už analýzu neblokuje. Klientske údaje sa na AI posielajú iba pri uloženom súhlase.
 
 ## Predchádzajúce živé overenie
 
