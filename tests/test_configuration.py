@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from cryptography.fernet import Fernet
 
@@ -48,6 +50,41 @@ def test_valid_production_settings_serve_https_login_and_database_health(tmp_pat
     assert response.status_code == 200
     assert response.headers["Strict-Transport-Security"] == "max-age=31536000"
     assert client.get("/healthz", base_url="https://portal.example.org").json == {"status": "ok"}
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+
+
+def test_https_csrf_login_preserves_same_origin_browser_referrer(tmp_path):
+    origin = "https://portal.example.org"
+    app = configured_app(
+        tmp_path,
+        PRODUCTION=True,
+        BASE_URL=origin,
+        TRUSTED_HOSTS=["portal.example.org"],
+        SESSION_COOKIE_SECURE=True,
+        WTF_CSRF_ENABLED=True,
+        WTF_CSRF_SSL_STRICT=True,
+        CONTROLLER_NAME="Testovací prevádzkovateľ",
+        CONTROLLER_ADDRESS="Testovacia 1, Bratislava",
+        PRIVACY_EMAIL="privacy@example.org",
+    )
+    with app.app_context():
+        db.create_all()
+    client = app.test_client()
+    page = client.get("/login", base_url=origin)
+    policy = page.headers["Referrer-Policy"]
+    assert policy == "same-origin"
+    token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+    data = {"email": "unknown@example.org", "password": "invalid-credentials", "csrf_token": token}
+    # A browser sends a same-origin Referer only when the page policy permits it.
+    browser_headers = {"Referer": origin + "/login"} if policy == "same-origin" else {}
+    response = client.post("/login", base_url=origin, data=data, headers=browser_headers)
+    assert response.status_code == 200
+    assert "Prihlásenie sa nepodarilo" in response.get_data(as_text=True)
+    assert client.post("/login", base_url=origin, data=data).status_code == 400
+    assert client.post("/login", base_url=origin, data=data,
+                       headers={"Referer": "https://other.example.org/login"}).status_code == 400
     with app.app_context():
         db.session.remove()
         db.drop_all()
