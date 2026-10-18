@@ -4,6 +4,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from app import create_app
+from config import settings
 from database import db
 
 
@@ -20,6 +21,63 @@ def configured_app(tmp_path, **overrides):
     }
     values.update(overrides)
     return create_app(values)
+
+
+def test_production_domain_migration_accepts_both_configured_hosts_and_blocks_unknown(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("BASE_URL", "https://portal.kubekfinance.sk")
+    monkeypatch.setenv(
+        "TRUSTED_HOSTS",
+        " kubek-finance-portal-production.up.railway.app, KUBEK-FINANCE-PORTAL-PRODUCTION.UP.RAILWAY.APP, , ",
+    )
+    config = settings()
+    assert config["TRUSTED_HOSTS"] == [
+        "portal.kubekfinance.sk", "kubek-finance-portal-production.up.railway.app",
+    ]
+    app = configured_app(
+        tmp_path, PRODUCTION=config["PRODUCTION"], BASE_URL=config["BASE_URL"],
+        TRUSTED_HOSTS=config["TRUSTED_HOSTS"],
+        CONTROLLER_NAME="Testovací prevádzkovateľ", PRIVACY_EMAIL="privacy@example.org",
+    )
+    client = app.test_client()
+    for host in config["TRUSTED_HOSTS"]:
+        assert client.get("/login", base_url=f"https://{host}").status_code == 200
+    assert client.get("/login", base_url="https://unknown.example.org").status_code == 400
+    assert client.get("/login", base_url="https://unexpected.portal.kubekfinance.sk").status_code == 400
+
+
+@pytest.mark.parametrize("additional_hosts", [None, "", " , "])
+def test_production_defaults_to_only_base_url_hostname(tmp_path, monkeypatch, additional_hosts):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("BASE_URL", "https://portal.kubekfinance.sk")
+    if additional_hosts is None:
+        monkeypatch.delenv("TRUSTED_HOSTS", raising=False)
+    else:
+        monkeypatch.setenv("TRUSTED_HOSTS", additional_hosts)
+    config = settings()
+    assert config["TRUSTED_HOSTS"] == ["portal.kubekfinance.sk"]
+    app = configured_app(
+        tmp_path, PRODUCTION=config["PRODUCTION"], BASE_URL=config["BASE_URL"],
+        TRUSTED_HOSTS=config["TRUSTED_HOSTS"],
+        CONTROLLER_NAME="Testovací prevádzkovateľ", PRIVACY_EMAIL="privacy@example.org",
+    )
+    client = app.test_client()
+    assert client.get("/login", base_url="https://portal.kubekfinance.sk").status_code == 200
+    assert client.get("/login", base_url="https://kubek-finance-portal-production.up.railway.app").status_code == 400
+
+
+@pytest.mark.parametrize("additional_hosts", ["*", "*.kubekfinance.sk", ".kubekfinance.sk", "https://portal.kubekfinance.sk", "portal.kubekfinance.sk:8080"])
+def test_production_rejects_wildcard_or_non_hostname_trust_settings(monkeypatch, additional_hosts):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("TRUSTED_HOSTS", additional_hosts)
+    with pytest.raises(RuntimeError, match="TRUSTED_HOSTS"):
+        settings()
+
+
+def test_development_keeps_host_validation_disabled(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("TRUSTED_HOSTS", "portal.kubekfinance.sk")
+    assert settings()["TRUSTED_HOSTS"] is None
 
 
 @pytest.mark.parametrize("key", ["", None, "private-invalid-test-key", "neplatný-kľúč"])
