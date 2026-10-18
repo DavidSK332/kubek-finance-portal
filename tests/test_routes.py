@@ -1,7 +1,10 @@
 import re
 
+import pytest
+
 from conftest import login, proposal_form
-from database import Agent, Inquiry, Job, Summary, db
+from database import Agent, Inquiry, Job, Summary, db, enqueue
+from security import encrypt
 
 
 def public_form_data(sample_data, key):
@@ -133,3 +136,82 @@ def test_failed_logins_lock_account_even_with_correct_password(app, client):
     assert response.status_code == 200
     with client.session_transaction() as session:
         assert "agent_id" not in session
+
+
+def test_explicit_mail_retry_clears_previous_error(app, client, inquiry_id):
+    with app.app_context():
+        job = enqueue(inquiry_id, "notify_agent", "blocked-mail-retry")
+        job.status, job.attempts, job.last_error = "blocked", 1, "MailConfigurationError"
+        db.session.commit()
+        job_id = job.id
+    login(client)
+    response = client.post(f"/klienti/{inquiry_id}/ulohy/{job_id}/opakovat", follow_redirects=True)
+    assert response.status_code == 200
+    assert b"MailConfigurationError" not in response.data
+    with app.app_context():
+        job = db.session.get(Job, job_id)
+        assert job.status == "pending"
+        assert job.attempts == 0
+        assert job.last_error is None
+
+
+def test_completed_unavailable_ai_can_retry_with_original_consent_ownership_and_csrf(app, client, inquiry_id):
+    with app.app_context():
+        inquiry = db.session.get(Inquiry, inquiry_id)
+        data = inquiry.data
+        data["ai_consent"] = True
+        inquiry.data_encrypted = encrypt(data)
+        inquiry.ai_status = "unavailable"
+        job = enqueue(inquiry_id, "analyze", "unavailable-ai-retry")
+        job.status, job.attempts = "done", 1
+        db.session.commit()
+        job_id = job.id
+    endpoint = f"/klienti/{inquiry_id}/ulohy/{job_id}/opakovat"
+    other_client = app.test_client()
+    login(other_client, 2)
+    assert other_client.post(endpoint).status_code == 404
+    login(client)
+    app.config["WTF_CSRF_ENABLED"] = True
+    page = client.get(f"/klienti/{inquiry_id}")
+    assert "Zopakovať AI analýzu" in page.get_data(as_text=True)
+    assert client.post(endpoint).status_code == 400
+    token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+    assert client.post(endpoint, data={"csrf_token": token}).status_code == 302
+    with app.app_context():
+        inquiry = db.session.get(Inquiry, inquiry_id)
+        job = db.session.get(Job, job_id)
+        assert inquiry.data["ai_consent"] is True
+        assert inquiry.ai_status == "pending"
+        assert job.status == "pending"
+        assert job.attempts == 0
+        assert db.session.execute(db.select(db.func.count(Job.id))).scalar() == 1
+
+
+@pytest.mark.parametrize("kind,status,consent,ai_status", [
+    ("analyze", "done", False, "unavailable"),
+    ("notify_agent", "done", True, "unavailable"),
+    ("send_summary", "done", True, "unavailable"),
+    ("analyze", "done", True, "done"),
+    ("analyze", "done", True, "skipped"),
+    ("analyze", "running", True, "unavailable"),
+    ("analyze", "pending", True, "unavailable"),
+])
+def test_ai_retry_does_not_requeue_completed_mail_or_bypass_consent_and_state(
+        app, client, inquiry_id, kind, status, consent, ai_status):
+    with app.app_context():
+        inquiry = db.session.get(Inquiry, inquiry_id)
+        data = inquiry.data
+        data["ai_consent"] = consent
+        inquiry.data_encrypted = encrypt(data)
+        inquiry.ai_status = ai_status
+        job = enqueue(inquiry_id, kind, "not-retryable")
+        job.status = status
+        db.session.commit()
+        job_id = job.id
+    login(client)
+    page = client.get(f"/klienti/{inquiry_id}")
+    assert "Zopakovať AI analýzu" not in page.get_data(as_text=True)
+    assert client.post(f"/klienti/{inquiry_id}/ulohy/{job_id}/opakovat").status_code == 400
+    with app.app_context():
+        assert db.session.get(Job, job_id).status == status
+        assert db.session.get(Inquiry, inquiry_id).ai_status == ai_status
