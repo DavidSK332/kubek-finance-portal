@@ -40,7 +40,6 @@ def test_valid_production_settings_serve_https_login_and_database_health(tmp_pat
         TRUSTED_HOSTS=["portal.example.org"],
         SESSION_COOKIE_SECURE=True,
         CONTROLLER_NAME="Testovací prevádzkovateľ",
-        CONTROLLER_ADDRESS="Testovacia 1, Bratislava",
         PRIVACY_EMAIL="privacy@example.org",
     )
     with app.app_context():
@@ -66,7 +65,6 @@ def test_https_csrf_login_preserves_same_origin_browser_referrer(tmp_path):
         WTF_CSRF_ENABLED=True,
         WTF_CSRF_SSL_STRICT=True,
         CONTROLLER_NAME="Testovací prevádzkovateľ",
-        CONTROLLER_ADDRESS="Testovacia 1, Bratislava",
         PRIVACY_EMAIL="privacy@example.org",
     )
     with app.app_context():
