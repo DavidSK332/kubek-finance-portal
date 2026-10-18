@@ -136,7 +136,7 @@ def create_app(test_config=None):
     def headers(response):
         response.headers.update({
             "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
-            "Referrer-Policy": "no-referrer", "Cache-Control": "no-store",
+            "Referrer-Policy": "same-origin", "Cache-Control": "no-store",
             "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
             "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         })
