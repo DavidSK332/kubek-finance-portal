@@ -4,8 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0a0a1a">
   <title>{% block title %}Finančný portál{% endblock %} | {{ organization }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 <body class="{% if g.agent %}agent-layout{% else %}public-layout{% endif %}">
@@ -14,14 +17,14 @@
 <aside class="sidebar">
   <a class="brand brand-light" href="{{ url_for('dashboard') }}"><span class="brand-icon">K</span><span>{{ organization }}<small>PRACOVNÝ PRIESTOR</small></span></a>
   <div class="sidebar-label">PREHĽAD</div>
-  <a class="nav-item active" href="{{ url_for('dashboard') }}"><span class="nav-symbol">▦</span> Klienti a dopyty</a>
-  <a class="nav-item" href="{{ url_for('privacy') }}"><span class="nav-symbol">◇</span> Spracúvanie údajov</a>
+  <a class="nav-item{% if request.endpoint != 'privacy' %} active{% endif %}" href="{{ url_for('dashboard') }}"{% if request.endpoint != 'privacy' %} aria-current="page"{% endif %}><span class="nav-symbol" aria-hidden="true">▦</span> Klienti a dopyty</a>
+  <a class="nav-item{% if request.endpoint == 'privacy' %} active{% endif %}" href="{{ url_for('privacy') }}"{% if request.endpoint == 'privacy' %} aria-current="page"{% endif %}><span class="nav-symbol" aria-hidden="true">◇</span> Spracúvanie údajov</a>
   <div class="sidebar-note"><span class="status-dot"></span> Váš priestor pre klientov<p>Od prvého kontaktu po pripravený návrh riešenia.</p></div>
   <div class="agent-card"><div class="avatar">{{ g.agent.name[:1]|upper }}</div><div><strong>{{ g.agent.name }}</strong><small>Finančný agent</small></div></div>
   <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="logout" type="submit">Odhlásiť sa</button></form>
 </aside>
 {% else %}
-<header class="public-header"><a class="brand" href="{{ url_for('index') }}"><span class="brand-icon">K</span><span>{{ organization }}<small>FINANČNÝ PORTÁL</small></span></a><span class="header-note">Jeden prehľad. Jasnejšie rozhodnutia.</span></header>
+<header class="public-header"><a class="brand" href="{{ url_for('index') }}"><span class="brand-icon" aria-hidden="true">K</span><span>{{ organization }}<small>FINANČNÝ PORTÁL</small></span></a><a class="header-note" href="https://www.kubekfinance.sk/">Späť na kubekfinance.sk ↗</a></header>
 {% endif %}
 <main id="main" class="{% if g.agent %}workspace{% else %}public-main{% endif %}">
   {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div role="status" class="alert {{ category }}">{{ message }}</div>{% endfor %}{% endwith %}

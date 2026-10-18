@@ -3,7 +3,7 @@
 {% block title %}Váš finančný prehľad{% endblock %}
 {% block content %}
 <div class="questionnaire-layout">
-  <aside class="questionnaire-intro"><div class="eyebrow">KLIENTSKY DOTAZNÍK</div><h1>Začnime<br>vaším prehľadom.</h1><p>Pár údajov pomôže vášmu agentovi pochopiť, kde ste dnes a čo chcete dosiahnuť.</p><div class="contact-card"><div class="avatar">{{ agent.name[:1]|upper }}</div><div><small>VÁŠ FINANČNÝ AGENT</small><strong>{{ agent.name }}</strong><a href="mailto:{{ agent.email }}">{{ agent.email }}</a></div></div><p class="small muted">Pripravte si čisté mesačné príjmy a aktuálne zostatky úverov. Sumy uvádzajte v eurách.</p><div class="note">Do poznámok nevkladajte rodné čísla, heslá, čísla kariet ani zdravotné údaje.</div></aside>
+  <aside class="questionnaire-intro"><div class="eyebrow">KLIENTSKY DOTAZNÍK</div><h1>Začnime <br>vaším prehľadom.</h1><p>Pár údajov pomôže vášmu agentovi pochopiť, kde ste dnes a čo chcete dosiahnuť.</p><div class="contact-card"><div class="avatar">{{ agent.name[:1]|upper }}</div><div><small>VÁŠ FINANČNÝ AGENT</small><strong>{{ agent.name }}</strong><a href="mailto:{{ agent.email }}">{{ agent.email }}</a></div></div><p class="small muted">Pripravte si čisté mesačné príjmy a aktuálne zostatky úverov. Sumy uvádzajte v eurách.</p><div class="note">Do poznámok nevkladajte rodné čísla, heslá, čísla kariet ani zdravotné údaje.</div></aside>
   <section class="questionnaire-content">
   {% if errors %}<div class="alert error" role="alert"><strong>Skontrolujte formulár</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
   <form method="post" id="client-form" data-wizard>
