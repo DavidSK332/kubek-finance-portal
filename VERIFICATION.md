@@ -4,7 +4,8 @@ Dátum: 18. 10. 2026. Prostredie: Windows, Python 3.12.14, samostatné virtuáln
 
 | Kontrola | Výsledok |
 |---|---|
-| `python -m pytest -q` | Všetkých 43 testov úspešných |
+| `python -m pytest -q` | Všetkých 53 testov úspešných |
+| Konfigurácia | 16 testov vrátane produkčného nastavenia, kontaktu bez adresy a povolených hostiteľov |
 | Neplatný alebo chýbajúci `ENCRYPTION_KEY` | 4 regresné prípady; zrozumiteľná chyba bez vypísania hodnoty kľúča |
 | Platná produkčná konfigurácia | HTTPS prihlasovacia stránka, bezpečnostné hlavičky a `/healthz` po vytvorení schémy úspešné |
 | HTTPS formulár a CSRF | Regresný test zachováva `Referrer-Policy: same-origin`; platný token a rovnaký pôvod prejdú, chýbajúci alebo cudzí Referer vracia 400 |
@@ -20,17 +21,21 @@ Pri kontrole existujúceho nasadenia bol zistený neplatný `ENCRYPTION_KEY` a n
 
 **Railway úspešne nasadil všetky štyri služby: web, worker, PostgreSQL a Redis.** Pri následnom živom teste HTTPS formulára sa objavila chyba 400: pôvodná hlavička `Referrer-Policy: no-referrer` bránila odoslaniu Referer potrebného na prísnu HTTPS kontrolu Flask-WTF. Oprava používa `same-origin` a zachováva kontrolu CSRF tokenu aj pôvodu; pribudol produkčný regresný test.
 
-Živé overenie po oprave CSRF prešlo:
+Predchádzajúce živé overenie po oprave CSRF prešlo:
 - Verejné HTTPS `/login`, `/healthz`, CSS a JavaScript vrátili HTTP 200.
 - V prehliadači bol úspešne odoslaný päťkrokový formulár a zobrazené potvrdenie uloženia.
-- PostgreSQL obsahuje fiktívny dopyt „TEST Overenie nasadenia“. Worker dokončil úlohu `analyze`; bez voliteľného súhlasu s AI je stav `skipped`.
+- V PostgreSQL bol uložený fiktívny dopyt „TEST Overenie nasadenia“. Worker dokončil úlohu `analyze`; bez voliteľného súhlasu s AI bol stav `skipped`.
 - V produkčnom kontajneri sa z tohto dopytu vygenerovalo platné PDF s veľkosťou 47 759 bajtov.
 - Notifikácia je očakávane `blocked`, pretože `EMAIL_BACKEND=disabled`. Nebol odoslaný skutočný e-mail ani vykonané živé OpenAI volanie.
 - Používateľ vytvoril prihlasovací účet priamo v Railway konzole; heslo nie je súčasťou projektu ani overovacích záznamov.
 
-Fiktívny dopyt zostal označený ako test pre kontrolu v dashboarde. Kompletný postup uloženia návrhu a odoslania sumarizácie v produkcii sa zatiaľ nevykonal; tieto scenáre pokrývajú automatizované testy. Podľa potreby zostáva doplniť API/e-mailové údaje.
+Pri aktuálnej kontrole má dashboard používateľovho účtu 0 dopytov; historický test nie je tvrdením o obsahu tohto účtu. Kompletný postup uloženia návrhu a odoslania sumarizácie v produkcii sa zatiaľ nevykonal; tieto scenáre pokrývajú automatizované testy. Podľa potreby zostáva doplniť API/e-mailové údaje.
 
-Aktuálna úprava nastavuje primárny kontaktný e-mail na `info@kubekfinance.sk`, dopĺňa IČO `55012469` a DIČ `2121841821` a odstraňuje adresu prevádzkovateľa z aplikácie aj konfigurácie. Nasadenie bolo overené: stránka kontaktu aj prihlásenie vracajú HTTP 200, kontakt obsahuje obe identifikačné čísla a klikateľný e-mail; adresa sa nezobrazuje. Prihlásenie predvyplní info@kubekfinance.sk. Všetkých 6 kontrol konfigurácie prešlo bez adresy prevádzkovateľa. Všetky štyri služby sú online.
+Primárny kontaktný e-mail je `info@kubekfinance.sk`, prevádzkovateľ Dávid Kubek, IČO `55012469` a DIČ `2121841821`. Kontakt obsahuje obe identifikačné čísla a klikateľný e-mail; adresa sa nezobrazuje ani nevyžaduje. Prihlásenie predvyplní `info@kubekfinance.sk`.
+
+Aktuálne nasadenie používa [portal.kubekfinance.sk](https://portal.kubekfinance.sk), doména je overená a certifikát má v Railway stav `VALID`. Web aj worker úspešne nasadili commit `e1ed2eace65be3b8807d715f2bc0fc08a7757863`; všetky štyri služby sú online. `/login`, `/healthz` a `/static/brand.css` na novej doméne vracajú HTTP 200. Prihlásenie na pôvodnej Railway doméne aj hlavný web `www.kubekfinance.sk` zostávajú dostupné (HTTP 200).
+
+Vizuálna kontrola na počítači aj pri mobilnej šírke overila tmavomodrý vzhľad s tyrkysovými a fialovými prvkami a vlastnou ikonou podľa `kubekfinance.sk`. Spoločná téma v `static/brand.css` sa používa na prihlásení, dashboarde, dotazníku aj kontakte. Existujúca prihlásená relácia otvorila dashboard a odkaz na klientsky formulár už smeruje na novú doménu. Formulár sa na nej načítal; pri tejto zmene vzhľadu/domény sa nový produkčný dotazník neodosielal.
 
 Lokálny Docker build, úplný automatizovaný PostgreSQL/Redis integračný test ani odosielanie skutočných správ neprebehli. Cloudový Docker build, štart služieb a vizuálna kontrola prihlasovacej stránky i odoslania dotazníka prebehli cez Railway a Chrome.
 
