@@ -1,0 +1,20 @@
+{% macro input(name, label, values, type='text', default='', min='', max='', step='', required=false, hint='', placeholder='') %}
+<label class="field"><span>{{ label }}{% if required %} <span class="required">*</span>{% endif %}</span>
+  <input name="{{ name }}" type="{{ type }}" value="{{ values.get(name, default) if values.get(name, default) is not none else '' }}" {% if min != '' %}min="{{ min }}"{% endif %} {% if max != '' %}max="{{ max }}"{% endif %} {% if step %}step="{{ step }}"{% endif %} {% if required %}required{% endif %} {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {% if type == 'text' %}maxlength="160"{% endif %}>
+  {% if hint %}<small>{{ hint }}</small>{% endif %}
+</label>
+{% endmacro %}
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+{% macro debt_row(debt, types) %}
+<div class="debt-row">
+  <div class="debt-row-head"><strong>Existujúci záväzok</strong><button type="button" class="text-button danger" data-remove-debt>Odstrániť</button></div>
+  <div class="form-grid three">
+    <label class="field"><span>Typ záväzku</span><select name="debt_kind">{% for key, name in types.items() %}<option value="{{ key }}" {% if debt.get('kind') == key %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+    <label class="field"><span>Banka / poskytovateľ</span><input name="debt_lender" value="{{ debt.get('lender','') }}" maxlength="100"></label>
+    <label class="field"><span>Zostatok / čerpanie v EUR</span><input name="debt_balance" type="number" value="{{ debt.get('balance','0') }}" min="0" max="1000000000" step="0.01" required></label>
+    <label class="field"><span>Mesačná splátka v EUR</span><input name="debt_payment" type="number" value="{{ debt.get('payment','0') }}" min="0" max="1000000000" step="0.01" required></label>
+    <label class="field"><span>Úrok v % p. a.</span><input name="debt_rate" type="number" value="{{ debt.get('rate','0') }}" min="0" max="100" step="0.001" required></label>
+    <label class="field"><span>Celkový limit karty / prečerpania</span><input name="debt_limit" type="number" value="{{ debt.get('limit','0') }}" min="0" max="1000000000" step="0.01" required><small>Pri inom úvere ponechajte 0.</small></label>
+  </div>
+</div>
+{% endmacro %}
