@@ -1,13 +1,13 @@
-# KUBEK Finance - klientsky a agentov portál
+# Finančný portál - klientsky a agentov portál
 
 Kompletný samostatne spustiteľný projekt v Pythone 3.12+. Flask obsluhuje verejný dotazník a interné stránky, SQLAlchemy databázu, worker spracúva AI a e-maily. Šablóny aj PDF sú po slovensky. Stav vykonaných kontrol a nasadenia je v `VERIFICATION.md`. Zdrojový balík neobsahuje skutočné klientské údaje ani API kľúče.
 
-Portál je dostupný na [portal.kubekfinance.sk](https://portal.kubekfinance.sk). Vzhľad prihlásenia, dashboardu, dotazníka a kontaktu nadväzuje na [kubekfinance.sk](https://kubekfinance.sk): tmavomodré pozadie, tyrkysové a fialové prvky a vlastná ikona. Spoločná téma je v `static/brand.css`.
+Portál je dostupný na [portal.firma.example](https://portal.firma.example). Vzhľad prihlásenia, dashboardu, dotazníka a kontaktu nadväzuje na [firma.example](https://firma.example): tmavomodré pozadie, tyrkysové a fialové prvky a vlastná ikona. Spoločná téma je v `static/brand.css`.
 
 ## 1. Štruktúra projektu
 
 ```text
-kubek-finance-portal/
+financny-portal/
 ├── app.py                   # routy, autentifikácia, dashboard, CLI
 ├── config.py                # nastavenia z prostredia
 ├── database.py              # agenti, dopyty, verzie reportov, úlohy, audit
@@ -107,7 +107,7 @@ python app.py
 V druhom termináli:
 
 ```bash
-cd kubek-finance-portal
+cd financny-portal
 source .venv/bin/activate
 python worker.py
 ```
@@ -141,7 +141,7 @@ Oficiálne zdroje: [GPT-4o-mini](https://developers.openai.com/api/docs/models/g
 
 ```dotenv
 EMAIL_BACKEND=resend
-MAIL_FROM=info@kubekfinance.sk
+MAIL_FROM=portal@vasa-firma.sk
 RESEND_API_KEY=
 ```
 
@@ -149,7 +149,7 @@ V Resende vytvorte účet, pridajte svoju odosielaciu doménu a overte jej DNS z
 
 Resend používa HTTPS a funguje aj na nižších plánoch Railway. Jeho bezplatný plán má 3 000 správ mesačne a 100 denne; aktuálne limity sú v [cenníku Resendu](https://resend.com/pricing). SMTP je v Railway dostupné až od Pro podľa [dokumentácie Railway](https://docs.railway.com/networking/outbound-networking).
 
-Príjem pošty pre `kubekfinance.sk` zostáva vo Websupporte: koreňové MX záznamy `mx10.websupport.sk` s prioritou 10 a `mx20.websupport.sk` s prioritou 100. SPF pre Websupport je samostatný koreňový TXT záznam. Záznamy Resendu pre `send`, `rsend` a `resend._domainkey` nemenia príjmovú schránku. Presné hodnoty DNS poskytne Resend.
+Príjem pošty pre `firma.example` zostáva vo poskytovateľovi e-mailu: koreňové MX záznamy `mx1.poskytovatel.example` s prioritou 10 a `mx2.poskytovatel.example` s prioritou 100. SPF pre Websupport je samostatný koreňový TXT záznam. Záznamy Resendu pre `send`, `rsend` a `resend._domainkey` nemenia príjmovú schránku. Presné hodnoty DNS poskytne Resend.
 
 ### Možnosť A - SMTP
 
@@ -226,7 +226,7 @@ docker compose logs --tail=100 web worker
 
 Otvorte `http://127.0.0.1:5000`. Web pri prvom štarte vytvorí tabuľky. Worker môže pred dokončením inicializácie krátko reštartovať; politika reštartu ho obnoví. Zmeny schémy pri budúcich verziách riešte migráciami, nie opakovaným `create_all`.
 
-V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://portal.kubekfinance.sk`, skutočný `CONTROLLER_NAME` a primárny kontaktný e-mail `PRIVACY_EMAIL=info@kubekfinance.sk`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
+V produkcii nastavte `APP_ENV=production`, `BASE_URL=https://vaš-web.sk`, skutočný `CONTROLLER_NAME` a primárny kontaktný e-mail `PRIVACY_EMAIL=.sk`. Dajte aplikáciu za HTTPS reverse proxy. Ak ide presne o jeden dôveryhodný proxy server, použite `TRUST_PROXY=1`; port aplikácie nesmie byť dostupný obídením proxy. Proxy musí zachovať hostname z `BASE_URL`.
 
 ## 9. GitHub → Railway: web, worker, PostgreSQL a Redis
 
@@ -235,24 +235,24 @@ Nastavenia nasadenia zadajte priamo v Railway dashboarde. Súbory `railway.json`
 1. Do súkromného GitHub repozitára nahrajte **celý obsah projektu vrátane priečinkov** `templates/`, `static/` a `assets/`. Na hlavnej úrovni musia byť `app.py`, `Dockerfile`, `requirements.txt` a `start-web.sh`. Nenahrávajte `.env`, `.venv`, `instance/` ani databázové súbory.
 2. V prázdnom Railway projekte pridajte PostgreSQL s názvom `Postgres` a Redis s názvom `Redis`.
 3. Z GitHub repozitára pridajte službu `web`. Použije sa dodaný `Dockerfile`. V **Settings → Deploy → Custom Start Command** nastavte `sh start-web.sh`. **Pre-deploy Command** a **Healthcheck Path** nechajte prázdne. Skript najskôr vytvorí databázové tabuľky a potom spustí Gunicorn na porte z premennej `PORT`.
-4. Vo `web → Settings → Networking` nastavte verejnú HTTPS doménu s cieľovým portom `8080`. Pri vlastnej doméne zadajte v DNS záznamy CNAME a prípadný overovací TXT podľa Railway a počkajte na platný certifikát. Toto nasadenie používa `portal.kubekfinance.sk`; DNS je v Cloudflare. Hlavná doména `kubekfinance.sk` a `www` zostávajú samostatným webom.
+4. Vo `web → Settings → Networking` nastavte verejnú HTTPS doménu s cieľovým portom `8080`. Pri vlastnej doméne zadajte v DNS záznamy CNAME a prípadný overovací TXT podľa Railway a počkajte na platný certifikát. Toto nasadenie používa `vaš-web.sk`; DNS je v Cloudflare. Hlavná doména `vaš-web.sk` a `www` zostávajú samostatným webom.
 5. Vo `web → Variables → RAW Editor` nastavte nasledujúce premenné. Ukážkové hodnoty nahraďte vlastnými:
 
    ```ini
    APP_ENV=production
    PORT=8080
-   BASE_URL=https://portal.kubekfinance.sk
-   TRUSTED_HOSTS=portal.kubekfinance.sk,kubek-finance-portal-production.up.railway.app
+   BASE_URL=https://vaš-web.sk
+   TRUSTED_HOSTS=vaš-web.sk,vaše-finance-portal-production.up.railway.app
    SECRET_KEY=POVODNA_HODNOTA_Z_ENV
    ENCRYPTION_KEY=POVODNA_HODNOTA_Z_ENV
    DATABASE_URL=${{Postgres.DATABASE_URL}}
    RATELIMIT_STORAGE_URI=${{Redis.REDIS_URL}}
    TRUST_PROXY=1
-   ORGANIZATION_NAME="KUBEK Finance"
-   CONTROLLER_NAME="Dávid Kubek"
-   CONTROLLER_ICO=55012469
-   CONTROLLER_DIC=2121841821
-   PRIVACY_EMAIL=info@kubekfinance.sk
+   ORGANIZATION_NAME="Vaša firma"
+   CONTROLLER_NAME="Meno Priezvisko"
+   CONTROLLER_ICO=55500555
+   CONTROLLER_DIC=5588555
+   PRIVACY_EMAIL=portal@vasa-firma.sk
    EMAIL_BACKEND=disabled
    OPENAI_MODEL=gpt-4o-mini
    RETENTION_DAYS=180
